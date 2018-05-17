@@ -68,6 +68,49 @@ class CallbackModule(CallbackBase):
         self._host_total=len(self._all_vars()['vars']['ansible_play_hosts_all'])
         self._task_total=len(self._play.get_tasks()[0])
 
+    def v2_playbook_on_stats(self, stats):
+        self._display.banner("PLAY RECAP")
+
+        hosts = sorted(stats.processed.keys())
+        for h in hosts:
+            t = stats.summarize(h)
+
+            self._display.display(u"%s : %s %s %s %s" % (
+                hostcolor(h, t),
+                colorize(u'ok', t['ok'], C.COLOR_OK),
+                colorize(u'changed', t['changed'], C.COLOR_CHANGED),
+                colorize(u'unreachable', t['unreachable'], C.COLOR_UNREACHABLE),
+                colorize(u'failed', t['failures'], C.COLOR_ERROR)),
+                screen_only=True
+            )
+
+            self._display.display(u"%s : %s %s %s %s" % (
+                hostcolor(h, t, False),
+                colorize(u'ok', t['ok'], None),
+                colorize(u'changed', t['changed'], None),
+                colorize(u'unreachable', t['unreachable'], None),
+                colorize(u'failed', t['failures'], None)),
+                log_only=True
+            )
+
+        self._display.display("", screen_only=True)
+
+        # print custom stats
+        if self._plugin_options.get('show_custom_stats', C.SHOW_CUSTOM_STATS) and stats.custom:  # fallback on constants for inherited plugins missing docs
+            self._display.banner("CUSTOM STATS: ")
+            # per host
+            # TODO: come up with 'pretty format'
+            for k in sorted(stats.custom.keys()):
+                if k == '_run':
+                    continue
+                self._display.display('\t%s: %s' % (k, self._dump_results(stats.custom[k], indent=1).replace('\n', '')))
+
+            # print per run custom stats
+            if '_run' in stats.custom:
+                self._display.display("", screen_only=True)
+                self._display.display('\tRUN: %s' % self._dump_results(stats.custom['_run'], indent=1).replace('\n', ''))
+            self._display.display("", screen_only=True)
+
     def v2_playbook_on_task_start(self, task, is_conditional):
         args = ''
         # args can be specified as no_log in several places: in the task or in
